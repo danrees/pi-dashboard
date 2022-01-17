@@ -1,7 +1,6 @@
 <script lang="ts">
-  import Agenda from "./components/Agenda.svelte";
-
-  export let name: string;
+  import Agenda from "./components/agenda/agenda.svelte";
+  import Weather from "./components/weather/weather.svelte";
 </script>
 
 <nav class="bg-blue-900 shadow-lg">
@@ -29,8 +28,12 @@
     </div>
   </div>
 </nav>
-<main>Hello {name}</main>
-<Agenda />
+<main class="container mx-auto">
+  <div class="flex columns-2 gap-4">
+    <Agenda />
+    <Weather />
+  </div>
+</main>
 
 <style lang="postcss" global>
   @tailwind base;

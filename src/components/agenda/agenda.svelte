@@ -1,5 +1,6 @@
 <script lang="ts">
-  import Item from "./agenda/Item.svelte";
+  import Card from "../../layout/card.svelte";
+  import Item from "./Item.svelte";
 
   let agendaItems = [
     {
@@ -13,12 +14,12 @@
   ];
 </script>
 
-<div>
-  <ul class="list-disc list-outside">
+<Card>
+  <ul class="list-disc list-inside">
     {#each agendaItems as item (item.id)}
-      <li class="bg-blue-500">
+      <li>
         <Item item={item.value} />
       </li>
     {/each}
   </ul>
-</div>
+</Card>

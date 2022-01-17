@@ -25,6 +25,7 @@
     "@tsconfig/svelte": "^2.0.0",
     "autoprefixer": "^10.4.0",
     "babel-loader": "^8.2.3",
+    "postcss": "^8.4.5",
     "rollup": "^2.3.4",
     "rollup-plugin-css-only": "^3.1.0",
     "rollup-plugin-livereload": "^2.0.0",
@@ -40,6 +41,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^1.0.0-beta.8",
+    "googleapis": "^92.0.0",
     "sirv-cli": "^1.0.0"
   }
 }
