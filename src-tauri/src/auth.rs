@@ -9,6 +9,9 @@ use std::fs::File;
 
 use crate::errors::DashboardError;
 
+pub type MyToken =
+  oauth2::StandardTokenResponse<oauth2::EmptyExtraTokenFields, oauth2::basic::BasicTokenType>;
+
 #[derive(Serialize, Deserialize)]
 struct InstalledCreds {
   client_id: String,
@@ -47,7 +50,7 @@ pub fn get_auth_url(redirect_url: String) -> Result<String, DashboardError> {
   Ok(auth_url.into())
 }
 
-pub fn exchange_token(auth_code: String, redirect_url: String) -> Result<(), DashboardError> {
+pub fn exchange_token(auth_code: String, redirect_url: String) -> Result<MyToken, DashboardError> {
   println!("Code: {}", auth_code);
   let creds = load_creds()?;
   let client = BasicClient::new(
@@ -57,14 +60,9 @@ pub fn exchange_token(auth_code: String, redirect_url: String) -> Result<(), Das
     Some(TokenUrl::new(creds.installed.token_uri)?),
   )
   .set_redirect_uri(RedirectUrl::new(redirect_url)?);
-  if let Ok(token_result) = client
+  let token = client
     .exchange_code(AuthorizationCode::new(auth_code))
     .request(http_client)
-  {
-    println!("Token result: {:?}", token_result);
-    if let Ok(pretty) = serde_json::to_string_pretty(&token_result) {
-      println!("{}", pretty);
-    };
-  };
-  Ok(())
+    .or_else(|e| return Err(DashboardError(format!("{}", e))));
+  token
 }

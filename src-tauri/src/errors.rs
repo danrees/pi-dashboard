@@ -33,3 +33,9 @@ impl From<oauth2::url::ParseError> for DashboardError {
     DashboardError(format!("{}", error))
   }
 }
+
+impl From<std::sync::mpsc::RecvError> for DashboardError {
+  fn from(error: std::sync::mpsc::RecvError) -> DashboardError {
+    DashboardError(format!("{}", error))
+  }
+}

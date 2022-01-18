@@ -8,9 +8,7 @@
 
   const onLogin = async () => {
     try {
-      const authUrl: string = await invoke("get_auth_url");
-      console.log(authUrl);
-      open(authUrl);
+      await invoke("login");
     } catch (err) {
       console.log(err);
     }
