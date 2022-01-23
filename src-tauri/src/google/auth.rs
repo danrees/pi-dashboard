@@ -44,7 +44,7 @@ pub fn get_auth_url(redirect_url: String) -> Result<String, DashboardError> {
   let (auth_url, csrf_token) = client
     .authorize_url(CsrfToken::new_random)
     .add_scope(Scope::new(
-      "https://www.googleapis.com/auth/calendar.readonly".to_string(),
+      "https://www.googleapis.com/auth/calendar".to_string(),
     ))
     .url();
   Ok(auth_url.into())
@@ -63,6 +63,20 @@ pub fn exchange_token(auth_code: String, redirect_url: String) -> Result<MyToken
   let token = client
     .exchange_code(AuthorizationCode::new(auth_code))
     .request(http_client)
-    .or_else(|e| return Err(DashboardError(format!("{}", e))));
+    .or_else(|e| {
+      return Err(DashboardError::new(
+        format!("{}", e),
+        Some("oauth2::RequestTokenError".to_string()),
+      ));
+    });
   token
+}
+
+pub fn get_token() -> Option<MyToken> {
+  let reader = File::open("../.saved_token.json").ok();
+  if let Some(r) = reader {
+    serde_json::from_reader(r).ok()
+  } else {
+    None
+  }
 }

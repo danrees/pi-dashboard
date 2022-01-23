@@ -6,9 +6,19 @@
   import Weather from "./components/weather/weather.svelte";
   import { open } from "@tauri-apps/api/shell";
 
+  let calendarList = "";
+
   const onLogin = async () => {
     try {
       await invoke("login");
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  const getCalendar = async () => {
+    try {
+      calendarList = await invoke("get_calendar");
     } catch (err) {
       console.log(err);
     }
@@ -49,6 +59,10 @@
   <div class="flex columns-2 gap-4">
     <Agenda />
     <Weather />
+  </div>
+  <div>
+    <button on:click={getCalendar}>Get Calendars</button>
+    <p>{calendarList}</p>
   </div>
 </main>
 

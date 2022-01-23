@@ -2,13 +2,16 @@
   all(not(debug_assertions), target_os = "windows"),
   windows_subsystem = "windows"
 )]
-mod auth;
 mod errors;
+mod google;
+
+use google::auth;
+use google::client::Client;
+use std::time::Duration;
 
 use rocket;
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::fs;
 use std::fs::File;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -32,7 +35,11 @@ struct WeatherResponse {
 }
 
 #[tauri::command]
-fn login(window: tauri::Window, rx: tauri::State<Rx>) -> Result<(), errors::DashboardError> {
+fn login(
+  window: tauri::Window,
+  rx: tauri::State<Rx>,
+  google_client: tauri::State<Mutex<Client>>,
+) -> Result<(), errors::DashboardError> {
   let token_file = File::open("../.saved_token.json");
   let token = match token_file {
     Ok(file) => {
@@ -48,6 +55,10 @@ fn login(window: tauri::Window, rx: tauri::State<Rx>) -> Result<(), errors::Dash
       serde_json::to_writer(File::create("../.saved_token.json")?, &token)?;
       token
     }
+  };
+  match google_client.lock() {
+    Ok(mut l) => l.update_token(token),
+    Err(e) => return Err(errors::DashboardError::new(format!("{}", e), None)),
   };
   Ok(())
 }
@@ -67,6 +78,13 @@ fn get_weather() -> Result<WeatherResponse, errors::DashboardError> {
   Ok(resp)
 }
 
+#[tauri::command]
+fn get_calendar(
+  google_client: tauri::State<Mutex<Client>>,
+) -> Result<String, errors::DashboardError> {
+  google_client.lock()?.list_calendars()
+}
+
 #[rocket::get("/callback?<code>")]
 fn callback(code: &str, tx: &rocket::State<Tx>) -> &'static str {
   if let Err(e) = tx.0.lock().unwrap().send(code.to_string()) {
@@ -76,8 +94,14 @@ fn callback(code: &str, tx: &rocket::State<Tx>) -> &'static str {
   "You can close now"
 }
 
-fn main() {
+fn main() -> Result<(), errors::DashboardError> {
   let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
+  let token = auth::get_token();
+  let agent = ureq::AgentBuilder::new()
+    .timeout_read(Duration::from_secs(5))
+    .timeout_write(Duration::from_secs(5))
+    .build();
+  let google_client = Client::new(None, token, agent);
   tauri::Builder::default()
     .setup(move |app| {
       tauri::async_runtime::spawn(
@@ -89,7 +113,9 @@ fn main() {
       Ok(())
     })
     .manage(Rx(Mutex::new(rx)))
-    .invoke_handler(tauri::generate_handler![get_weather, login])
+    .manage(Mutex::new(google_client))
+    .invoke_handler(tauri::generate_handler![get_weather, login, get_calendar])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
+  Ok(())
 }
