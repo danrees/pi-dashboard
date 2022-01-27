@@ -35,30 +35,19 @@ struct WeatherResponse {
 }
 
 #[tauri::command]
-fn login(
-  window: tauri::Window,
-  rx: tauri::State<Rx>,
-  google_client: tauri::State<Mutex<Client>>,
-) -> Result<(), errors::DashboardError> {
-  let token_file = File::open("../.saved_token.json");
-  let token = match token_file {
-    Ok(file) => {
-      let token: auth::MyToken = serde_json::from_reader(file)?;
-      token
-    }
+fn login(window: tauri::Window, rx: tauri::State<Rx>) -> Result<(), errors::DashboardError> {
+  let token_file = auth::load_token();
+  match token_file {
+    Ok(token) => token,
     Err(_) => {
       //We'll just assume that if there was an error opening the file that it doesn't exist
       let auth_url = auth::get_auth_url("http://localhost:8000/callback".to_string())?;
       shell::open(auth_url, None);
       let auth_code = rx.0.lock().unwrap().recv()?;
       let token = auth::exchange_token(auth_code, "http://localhost:8000/callback".to_string())?;
-      serde_json::to_writer(File::create("../.saved_token.json")?, &token)?;
+      auth::save_token(&token)?;
       token
     }
-  };
-  match google_client.lock() {
-    Ok(mut l) => l.update_token(token),
-    Err(e) => return Err(errors::DashboardError::new(format!("{}", e), None)),
   };
   Ok(())
 }
@@ -96,12 +85,8 @@ fn callback(code: &str, tx: &rocket::State<Tx>) -> &'static str {
 
 fn main() -> Result<(), errors::DashboardError> {
   let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
-  let token = auth::get_token();
-  let agent = ureq::AgentBuilder::new()
-    .timeout_read(Duration::from_secs(5))
-    .timeout_write(Duration::from_secs(5))
-    .build();
-  let google_client = Client::new(None, token, agent);
+  let token = auth::load_token().ok();
+  let google_client = Client::new(None, token, "http://localhost:8000/callback".to_string());
   tauri::Builder::default()
     .setup(move |app| {
       tauri::async_runtime::spawn(
