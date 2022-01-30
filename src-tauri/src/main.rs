@@ -6,7 +6,7 @@ mod errors;
 mod google;
 
 use google::auth;
-use google::client::Client;
+use google::client::{CalendarList, Client};
 use std::time::Duration;
 
 use rocket;
@@ -70,7 +70,7 @@ fn get_weather() -> Result<WeatherResponse, errors::DashboardError> {
 #[tauri::command]
 fn get_calendar(
   google_client: tauri::State<Mutex<Client>>,
-) -> Result<String, errors::DashboardError> {
+) -> Result<CalendarList, errors::DashboardError> {
   google_client.lock()?.list_calendars()
 }
 

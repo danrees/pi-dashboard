@@ -15,12 +15,14 @@ use ureq::{Agent, Middleware, MiddlewareNext, Request, Response};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Calendar {
-  pub kind: String,
-  pub etag: String,
-  pub id: String,
-  pub summary: String,
-  pub location: String,
-  pub time_zone: String,
+  id: String,
+  summary: String,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CalendarList {
+  kind: String,
+  etag: String,
+  items: Vec<Calendar>,
 }
 
 pub struct Client {
@@ -91,14 +93,14 @@ impl Client {
     }
   }
 
-  pub fn list_calendars(&mut self) -> Result<String, DashboardError> {
+  pub fn list_calendars(&mut self) -> Result<CalendarList, DashboardError> {
     println!("called list_calendars");
     let url = format!("{}{}", self.url, "/users/me/calendarList");
     let response = match self.with_retry("get", url.as_str()) {
       Ok(resp) => resp,
       Err(e) => return Err(e.into()),
     };
-    match response.into_string() {
+    match response.into_json() {
       Ok(resp) => Ok(resp),
       Err(e) => Err(e.into()),
     }

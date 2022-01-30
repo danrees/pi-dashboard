@@ -6,7 +6,11 @@
   import Weather from "./components/weather/weather.svelte";
   import { open } from "@tauri-apps/api/shell";
 
-  let calendarList = "";
+  let calendarList: {
+    items: { summary: string }[];
+  } = {
+    items: [],
+  };
 
   const onLogin = async () => {
     try {
@@ -62,8 +66,10 @@
   </div>
   <div>
     <button on:click={getCalendar}>Get Calendars</button>
-    <p>{calendarList}</p>
   </div>
+  {#each calendarList.items as calendar (calendar.summary)}
+    <p>{calendar.summary}</p>
+  {/each}
 </main>
 
 <style lang="postcss" global>
