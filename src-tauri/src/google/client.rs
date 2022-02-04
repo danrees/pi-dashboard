@@ -75,18 +75,24 @@ impl Client {
       .call();
     match response {
       Err(ureq::Error::Status(401, _)) => {
-        let refresh_token =
-          auth::refresh_token(self.token.as_ref().unwrap(), self.redirect_url.clone());
-        let refresh_token2 = refresh_token.unwrap().clone();
-        self.set_token(Some(refresh_token2.clone()));
-        self
-          .agent
-          .request(method, path)
-          .set(
-            "Authorization",
-            format!("Bearer {}", refresh_token2.clone().access_token().secret()).as_str(),
-          )
-          .call()
+        match auth::refresh_token(self.token.as_ref().unwrap(), self.redirect_url.clone()) {
+          Ok(refresh_token) => {
+            let refresh_token2 = refresh_token.clone();
+            self.set_token(Some(refresh_token2.clone()));
+            self
+              .agent
+              .request(method, path)
+              .set(
+                "Authorization",
+                format!("Bearer {}", refresh_token2.clone().access_token().secret()).as_str(),
+              )
+              .call()
+          }
+          Err(e) => Err(ureq::Error::Status(
+            500,
+            ureq::Response::new(500, "internal server error", format!("{}", e).as_str()).unwrap(),
+          )),
+        }
       }
       Err(e) => Err(e),
       Ok(r) => Ok(r),
@@ -95,6 +101,12 @@ impl Client {
 
   pub fn list_calendars(&mut self) -> Result<CalendarList, DashboardError> {
     println!("called list_calendars");
+    if let None = self.token {
+      return Err(DashboardError::new(
+        String::from("no token set, login first"),
+        None,
+      ));
+    }
     let url = format!("{}{}", self.url, "/users/me/calendarList");
     let response = match self.with_retry("get", url.as_str()) {
       Ok(resp) => resp,

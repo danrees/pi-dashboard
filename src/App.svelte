@@ -5,6 +5,7 @@
   import Agenda from "./components/agenda/agenda.svelte";
   import Weather from "./components/weather/weather.svelte";
   import { open } from "@tauri-apps/api/shell";
+  import CalendarList from "./components/calendar/calendarList.svelte";
 
   let calendarList: {
     items: { summary: string }[];
@@ -15,14 +16,6 @@
   const onLogin = async () => {
     try {
       await invoke("login");
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  const getCalendar = async () => {
-    try {
-      calendarList = await invoke("get_calendar");
     } catch (err) {
       console.log(err);
     }
@@ -65,11 +58,8 @@
     <Weather />
   </div>
   <div>
-    <button on:click={getCalendar}>Get Calendars</button>
+    <CalendarList />
   </div>
-  {#each calendarList.items as calendar (calendar.summary)}
-    <p>{calendar.summary}</p>
-  {/each}
 </main>
 
 <style lang="postcss" global>
