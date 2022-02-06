@@ -4,14 +4,9 @@ use crate::auth;
 use crate::auth::MyToken;
 use crate::errors::DashboardError;
 use oauth2::TokenResponse;
-use reqwest::blocking::{Client as RClient, ClientBuilder};
-use retry::delay::Fixed;
-use retry::retry;
 use serde::{Deserialize, Serialize};
-use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use ureq::{Agent, Middleware, MiddlewareNext, Request, Response};
+use ureq::{Agent, Response};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Calendar {

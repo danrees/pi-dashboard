@@ -8,12 +8,10 @@ mod google;
 
 use google::auth;
 use google::client::{CalendarList, Client};
-use std::time::Duration;
 
 use rocket;
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::fs::File;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Mutex;
@@ -36,14 +34,15 @@ struct WeatherResponse {
 }
 
 #[tauri::command]
-fn login(window: tauri::Window, rx: tauri::State<Rx>) -> Result<(), errors::DashboardError> {
+fn login(rx: tauri::State<Rx>) -> Result<(), errors::DashboardError> {
   let token_file = auth::load_token();
   match token_file {
     Ok(token) => token,
     Err(_) => {
       //We'll just assume that if there was an error opening the file that it doesn't exist
       let auth_url = auth::get_auth_url("http://localhost:8000/callback".to_string())?;
-      shell::open(auth_url, None);
+      shell::open(auth_url, None)
+        .map_err(|e| errors::DashboardError::new(format!("{}", e), None))?;
       let auth_code = rx.0.lock().unwrap().recv()?;
       let token = auth::exchange_token(auth_code, "http://localhost:8000/callback".to_string())?;
       auth::save_token(&token)?;
@@ -58,7 +57,7 @@ fn get_weather() -> Result<WeatherResponse, errors::DashboardError> {
   let appid = env::var("OPEN_WEATHER").unwrap();
   let id = env::var("CITY_ID").unwrap();
   let uri = "https://api.openweathermap.org/data/2.5/weather";
-  let resp: WeatherResponse = ureq::get(&uri[..])
+  let resp: WeatherResponse = ureq::get(uri)
     .query("id", &id[..])
     .query("appid", &appid[..])
     .query("units", "metric")
