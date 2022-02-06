@@ -2,6 +2,7 @@
   all(not(debug_assertions), target_os = "windows"),
   windows_subsystem = "windows"
 )]
+mod config;
 mod errors;
 mod google;
 
@@ -74,6 +75,32 @@ fn get_calendar(
   google_client.lock()?.list_calendars()
 }
 
+#[tauri::command]
+fn save_config(
+  calendar_id: String,
+  config: tauri::State<Mutex<config::Config>>,
+) -> Result<config::Config, errors::DashboardError> {
+  let mut use_config = config.lock()?;
+  println!("{}", calendar_id);
+  use_config.calendar_id = Some(calendar_id);
+  println!("main: {:?}", use_config);
+  match use_config.write() {
+    Ok(_) => Ok(use_config.clone()),
+    Err(e) => Err(errors::DashboardError::new(
+      format!("{}", e),
+      Some(String::from("saving_config")),
+    )),
+  }
+}
+
+#[tauri::command]
+fn load_config(
+  config: tauri::State<Mutex<config::Config>>,
+) -> Result<config::Config, errors::DashboardError> {
+  let unlocked = config.lock()?.clone();
+  Ok(unlocked)
+}
+
 #[rocket::get("/callback?<code>")]
 fn callback(code: &str, tx: &rocket::State<Tx>) -> &'static str {
   if let Err(e) = tx.0.lock().unwrap().send(code.to_string()) {
@@ -83,12 +110,13 @@ fn callback(code: &str, tx: &rocket::State<Tx>) -> &'static str {
   "You can close now"
 }
 
-fn main() -> Result<(), errors::DashboardError> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
   let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
   let token = auth::load_token().ok();
   let google_client = Client::new(None, token, "http://localhost:8000/callback".to_string());
+  let config = config::Config::read()?;
   tauri::Builder::default()
-    .setup(move |app| {
+    .setup(move |_app| {
       tauri::async_runtime::spawn(
         rocket::build()
           .manage(Tx(Mutex::new(tx.clone())))
@@ -99,7 +127,14 @@ fn main() -> Result<(), errors::DashboardError> {
     })
     .manage(Rx(Mutex::new(rx)))
     .manage(Mutex::new(google_client))
-    .invoke_handler(tauri::generate_handler![get_weather, login, get_calendar])
+    .manage(Mutex::new(config))
+    .invoke_handler(tauri::generate_handler![
+      get_weather,
+      login,
+      get_calendar,
+      save_config,
+      load_config,
+    ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
   Ok(())

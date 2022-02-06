@@ -7,6 +7,8 @@ pub struct DashboardError {
   from: Option<String>,
 }
 
+impl std::error::Error for DashboardError {}
+
 impl DashboardError {
   pub fn new(msg: String, from: Option<String>) -> Self {
     DashboardError { msg, from }
