@@ -23,6 +23,14 @@ pub struct CalendarList {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TimePoint {
+  date_time: DateTime<Utc>,
+  time_zone: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Event {
   kind: String,
   etag: String,
@@ -31,6 +39,7 @@ pub struct Event {
   status: String,
   created: DateTime<Utc>,
   updated: DateTime<Utc>,
+  start: TimePoint,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -84,20 +93,26 @@ impl Client {
     self.token = token;
   }
 
-  fn with_retry(&mut self, method: &str, path: &str) -> Result<Response, ureq::Error> {
+  fn with_retry(
+    &mut self,
+    method: &str,
+    path: &str,
+    query: Vec<(&str, &str)>,
+  ) -> Result<Response, ureq::Error> {
     println!("with_retry");
-    let response = self
-      .agent
-      .request(method, path)
-      .set(
-        "Authorization",
-        format!(
-          "Bearer {}",
-          self.token.as_ref().unwrap().access_token().secret()
-        )
-        .as_str(),
+    let mut builder = self.agent.request(method, path).set(
+      "Authorization",
+      format!(
+        "Bearer {}",
+        self.token.as_ref().unwrap().access_token().secret()
       )
-      .call();
+      .as_str(),
+    );
+    let queries = query.iter();
+    for (key, value) in queries {
+      builder = builder.query(key, value);
+    }
+    let response = builder.call();
     match response {
       Err(ureq::Error::Status(401, _)) => {
         println!("status 401, trying to refresh");
@@ -137,7 +152,8 @@ impl Client {
       ));
     }
     let url = format!("{}{}", self.url, "/users/me/calendarList");
-    let response = match self.with_retry("get", url.as_str()) {
+    let query = vec![];
+    let response = match self.with_retry("get", url.as_str(), query) {
       Ok(resp) => resp,
       Err(e) => return Err(e.into()),
     };
@@ -149,7 +165,9 @@ impl Client {
 
   pub fn list_events(&mut self, calendar_id: String) -> Result<EventList, DashboardError> {
     let url = format!("{}/calendars/{}/events", self.url, calendar_id);
-    let response = self.with_retry("get", url.as_str())?;
+    let now = Utc::now().to_rfc3339();
+    let query = vec![("timeMin", now.as_str())];
+    let response = self.with_retry("get", url.as_str(), query)?;
     match response.into_json::<EventList>() {
       Ok(resp) => {
         self.cache.cache_set(calendar_id, resp.clone());

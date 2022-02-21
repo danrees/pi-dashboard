@@ -1,8 +1,11 @@
 <script lang="ts">
-  export let item: { summary: string; created: Date };
+  export let item: {
+    summary: string;
+    created: Date;
+    start: { dateTime: Date };
+  };
 </script>
 
 <div class="flex coloumns-2">
-  <span>{item.summary}</span>
-  <span>{new Date(item.created)}</span>
+  <p>{item.summary}-{new Date(item.start.dateTime)}</p>
 </div>
