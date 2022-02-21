@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/tauri";
+  import { onDestroy } from "svelte";
   import Card from "../../layout/card.svelte";
   import WeatherCard from "./weatherCard.svelte";
   type WeatherResponse = {
@@ -12,10 +13,14 @@
   let weather = invoke<WeatherResponse>("get_weather");
   let refreshedAt = new Date();
 
-  setInterval(() => {
+  let timer = setInterval(() => {
     weather = invoke<WeatherResponse>("get_weather");
     refreshedAt = new Date();
   }, 1000 * 60 * 5);
+
+  onDestroy(async () => {
+    clearInterval(timer);
+  });
 </script>
 
 <Card>
