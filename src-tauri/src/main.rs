@@ -7,7 +7,7 @@ mod errors;
 mod google;
 
 use google::auth;
-use google::client::{CalendarList, Client};
+use google::client::{CalendarList, Client, EventList};
 
 use rocket;
 use serde::{Deserialize, Serialize};
@@ -34,21 +34,19 @@ struct WeatherResponse {
 }
 
 #[tauri::command]
-fn login(rx: tauri::State<Rx>) -> Result<(), errors::DashboardError> {
-  let token_file = auth::load_token();
-  match token_file {
-    Ok(token) => token,
-    Err(_) => {
-      //We'll just assume that if there was an error opening the file that it doesn't exist
-      let auth_url = auth::get_auth_url("http://localhost:8000/callback".to_string())?;
-      shell::open(auth_url, None)
-        .map_err(|e| errors::DashboardError::new(format!("{}", e), None))?;
-      let auth_code = rx.0.lock().unwrap().recv()?;
-      let token = auth::exchange_token(auth_code, "http://localhost:8000/callback".to_string())?;
-      auth::save_token(&token)?;
-      token
-    }
-  };
+fn login(
+  rx: tauri::State<Rx>,
+  google_client: tauri::State<Mutex<Client>>,
+) -> Result<(), errors::DashboardError> {
+  println!("Called tauri login");
+
+  //We'll just assume that if there was an error opening the file that it doesn't exist
+  let auth_url = auth::get_auth_url("http://localhost:8000/callback".to_string())?;
+  shell::open(auth_url, None).map_err(|e| errors::DashboardError::new(format!("{}", e), None))?;
+  let auth_code = rx.0.lock().unwrap().recv()?;
+  let token = auth::exchange_token(auth_code, "http://localhost:8000/callback".to_string())?;
+  auth::save_token(&token)?;
+  google_client.lock()?.set_token(Some(token));
   Ok(())
 }
 
@@ -72,6 +70,20 @@ fn get_calendar(
   google_client: tauri::State<Mutex<Client>>,
 ) -> Result<CalendarList, errors::DashboardError> {
   google_client.lock()?.list_calendars()
+}
+
+#[tauri::command]
+fn get_events(
+  google_client: tauri::State<Mutex<Client>>,
+  config: tauri::State<Mutex<config::Config>>,
+) -> Result<EventList, errors::DashboardError> {
+  match &config.lock()?.calendar_id {
+    Some(id) => google_client.lock()?.list_events(id.clone()),
+    None => Err(errors::DashboardError::new(
+      String::from("No calendar id set, please select one in the configuration"),
+      None,
+    )),
+  }
 }
 
 #[tauri::command]
@@ -133,6 +145,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
       get_calendar,
       save_config,
       load_config,
+      get_events,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

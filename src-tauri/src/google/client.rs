@@ -3,6 +3,8 @@ const GOOGLE_URL: &'static str = "https://www.googleapis.com/calendar/v3";
 use crate::auth;
 use crate::auth::MyToken;
 use crate::errors::DashboardError;
+use cached::{stores::TimedCache, Cached};
+use chrono::{DateTime, Utc};
 use oauth2::TokenResponse;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -20,11 +22,37 @@ pub struct CalendarList {
   items: Vec<Calendar>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Event {
+  kind: String,
+  etag: String,
+  id: String,
+  summary: String,
+  status: String,
+  created: DateTime<Utc>,
+  updated: DateTime<Utc>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct EventList {
+  kind: String,
+  etag: String,
+  time_zone: String,
+  updated: Option<DateTime<Utc>>,
+  items: Vec<Event>,
+  //location: String,
+  //color_id: String,
+  //start: EventDate,
+  //end: EventDate,
+}
+
 pub struct Client {
   url: String,
   redirect_url: String,
   agent: Agent,
   token: Option<MyToken>,
+  cache: TimedCache<String, EventList>,
 }
 
 impl Client {
@@ -32,7 +60,7 @@ impl Client {
     let ab = ureq::AgentBuilder::new()
       .timeout_read(Duration::from_secs(5))
       .timeout_write(Duration::from_secs(5));
-    //.build();
+    let cache = TimedCache::with_lifespan(120);
     let agent = ab.build();
     match url {
       Some(url) => Client {
@@ -40,22 +68,24 @@ impl Client {
         agent,
         token,
         redirect_url,
+        cache,
       },
       None => Client {
         url: GOOGLE_URL.to_string(),
         agent,
         token,
         redirect_url,
+        cache,
       },
     }
   }
 
-  fn set_token(&mut self, token: Option<MyToken>) {
+  pub fn set_token(&mut self, token: Option<MyToken>) {
     self.token = token;
   }
 
   fn with_retry(&mut self, method: &str, path: &str) -> Result<Response, ureq::Error> {
-    //let token = self.token.as_ref().unwrap();
+    println!("with_retry");
     let response = self
       .agent
       .request(method, path)
@@ -70,6 +100,7 @@ impl Client {
       .call();
     match response {
       Err(ureq::Error::Status(401, _)) => {
+        println!("status 401, trying to refresh");
         match auth::refresh_token(self.token.as_ref().unwrap(), self.redirect_url.clone()) {
           Ok(refresh_token) => {
             let refresh_token2 = refresh_token.clone();
@@ -83,10 +114,13 @@ impl Client {
               )
               .call()
           }
-          Err(e) => Err(ureq::Error::Status(
-            500,
-            ureq::Response::new(500, "internal server error", format!("{}", e).as_str()).unwrap(),
-          )),
+          Err(e) => {
+            println!("problem: {}", e);
+            Err(ureq::Error::Status(
+              500,
+              ureq::Response::new(500, "internal server error", format!("{}", e).as_str()).unwrap(),
+            ))
+          }
         }
       }
       Err(e) => Err(e),
@@ -109,6 +143,18 @@ impl Client {
     };
     match response.into_json() {
       Ok(resp) => Ok(resp),
+      Err(e) => Err(e.into()),
+    }
+  }
+
+  pub fn list_events(&mut self, calendar_id: String) -> Result<EventList, DashboardError> {
+    let url = format!("{}/calendars/{}/events", self.url, calendar_id);
+    let response = self.with_retry("get", url.as_str())?;
+    match response.into_json::<EventList>() {
+      Ok(resp) => {
+        self.cache.cache_set(calendar_id, resp.clone());
+        Ok(resp)
+      }
       Err(e) => Err(e.into()),
     }
   }

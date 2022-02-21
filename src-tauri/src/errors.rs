@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::convert::From;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DashboardError {
   msg: String,
   from: Option<String>,

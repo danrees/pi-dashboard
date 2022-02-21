@@ -1,25 +1,32 @@
 <script lang="ts">
+  import { invoke } from "@tauri-apps/api/tauri";
+
   import Card from "../../layout/card.svelte";
   import Item from "./Item.svelte";
 
-  let agendaItems = [
-    {
-      id: 1,
-      value: "Shopping",
-    },
-    {
-      id: 2,
-      value: "Get gas",
-    },
-  ];
+  type EventList = {
+    items: {
+      id: string;
+      summary: string;
+      created: Date;
+    }[];
+  };
+
+  let agendaItems: Promise<EventList> = invoke("get_events");
 </script>
 
 <Card>
   <ul class="list-disc list-inside">
-    {#each agendaItems as item (item.id)}
-      <li>
-        <Item item={item.value} />
-      </li>
-    {/each}
+    {#await agendaItems}
+      <p>Loading...</p>
+    {:then items}
+      {#each items.items as item (item.id)}
+        <li>
+          <Item {item} />
+        </li>
+      {/each}
+    {:catch err}
+      <p>{err.msg}</p>
+    {/await}
   </ul>
 </Card>

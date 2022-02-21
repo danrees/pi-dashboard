@@ -92,7 +92,7 @@ pub fn get_auth_url(redirect_url: String) -> Result<String, DashboardError> {
   )
   .set_redirect_uri(RedirectUrl::new(redirect_url)?);
 
-  let (auth_url, csrf_token) = client
+  let (auth_url, _csrf_token) = client
     .authorize_url(CsrfToken::new_random)
     .add_scope(Scope::new(
       "https://www.googleapis.com/auth/calendar".to_string(),
@@ -133,19 +133,23 @@ pub fn refresh_token(token: &MyToken, redirect_url: String) -> Result<MyToken, D
     Some(TokenUrl::new(creds.installed.token_uri)?),
   )
   .set_redirect_uri(RedirectUrl::new(redirect_url)?);
-  let token = client
-    .exchange_refresh_token(token.refresh_token().ok_or(DashboardError::new(
-      String::from("No refresh token found"),
-      None,
-    ))?)
-    //.add_scope(Scope::new("offline_access".to_string()))
-    .request(http_client)
-    .or_else(|e| {
-      return Err(DashboardError::new(
-        format!("{:?}", e),
-        Some("oauth2::RequestTokenError".to_string()),
-      ));
-    });
+  if let Some(refresh_token) = token.refresh_token() {
+    println!("Refresh token is: {}", refresh_token.secret());
+    let token = client
+      .exchange_refresh_token(refresh_token)
+      .request(http_client)
+      .or_else(|e| {
+        return Err(DashboardError::new(
+          format!("{:?}", e),
+          Some("oauth2::RequestTokenError".to_string()),
+        ));
+      });
 
-  token
+    token
+  } else {
+    Err(DashboardError::new(
+      String::from("No refresh token set"),
+      None,
+    ))
+  }
 }
