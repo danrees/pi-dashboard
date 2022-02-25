@@ -68,9 +68,15 @@ fn load_creds() -> Result<OauthCreds, DashboardError> {
   Ok(x)
 }
 
-pub fn save_token(token: &MyToken) -> Result<(), DashboardError> {
+pub fn save_token(
+  token: &MyToken,
+  refresh_token: Option<oauth2::RefreshToken>,
+) -> Result<(), DashboardError> {
   println!("saving creds");
-  let to_save: SaveCreds = token.into();
+  let mut to_save: SaveCreds = token.into();
+  if let Some(t) = refresh_token {
+    to_save.refresh_token = Some(t.secret().clone());
+  }
   match serde_json::to_writer(File::create("../.saved_token.json")?, &to_save) {
     Ok(r) => Ok(r),
     Err(e) => Err(e.into()),

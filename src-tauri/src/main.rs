@@ -15,7 +15,7 @@ use std::env;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Mutex;
-use tauri::api::shell;
+use tauri::{api::shell, Manager, Window};
 
 struct Tx(Mutex<Sender<String>>);
 struct Rx(Mutex<Receiver<String>>);
@@ -37,15 +37,17 @@ struct WeatherResponse {
 fn login(
   rx: tauri::State<Rx>,
   google_client: tauri::State<Mutex<Client>>,
+  window: Window,
 ) -> Result<(), errors::DashboardError> {
   println!("Called tauri login");
 
   //We'll just assume that if there was an error opening the file that it doesn't exist
   let auth_url = auth::get_auth_url("http://localhost:8000/callback".to_string())?;
-  shell::open(auth_url, None).map_err(|e| errors::DashboardError::new(format!("{}", e), None))?;
+  shell::open(&window.shell_scope(), auth_url, None)
+    .map_err(|e| errors::DashboardError::new(format!("{}", e), None))?;
   let auth_code = rx.0.lock().unwrap().recv()?;
   let token = auth::exchange_token(auth_code, "http://localhost:8000/callback".to_string())?;
-  auth::save_token(&token)?;
+  auth::save_token(&token, None)?;
   google_client.lock()?.set_token(Some(token));
   Ok(())
 }

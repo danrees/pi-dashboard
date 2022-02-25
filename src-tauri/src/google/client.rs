@@ -129,7 +129,19 @@ impl Client {
           Ok(refresh_token) => {
             let refresh_token2 = refresh_token.clone();
             self.set_token(Some(refresh_token2.clone()));
-            auth::save_token(&refresh_token).map_err(|_e| ureq::Error::Status(401, resp))?;
+            auth::save_token(
+              &refresh_token,
+              Some(
+                self
+                  .token
+                  .as_ref()
+                  .unwrap()
+                  .refresh_token()
+                  .unwrap()
+                  .clone(),
+              ),
+            )
+            .map_err(|_e| ureq::Error::Status(401, resp))?;
             self.call(method, path, &query)
           }
           Err(e) => {
