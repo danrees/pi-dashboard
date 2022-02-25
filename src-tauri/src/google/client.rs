@@ -25,8 +25,8 @@ pub struct CalendarList {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TimePoint {
-  date_time: DateTime<Utc>,
-  time_zone: String,
+  date_time: Option<DateTime<Utc>>,
+  time_zone: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -93,13 +93,12 @@ impl Client {
     self.token = token;
   }
 
-  fn with_retry(
-    &mut self,
+  fn call(
+    &self,
     method: &str,
     path: &str,
-    query: Vec<(&str, &str)>,
-  ) -> Result<Response, ureq::Error> {
-    println!("with_retry");
+    query: &Vec<(&str, &str)>,
+  ) -> Result<ureq::Response, ureq::Error> {
     let mut builder = self.agent.request(method, path).set(
       "Authorization",
       format!(
@@ -112,22 +111,26 @@ impl Client {
     for (key, value) in queries {
       builder = builder.query(key, value);
     }
-    let response = builder.call();
+    builder.call()
+  }
+
+  fn with_retry(
+    &mut self,
+    method: &str,
+    path: &str,
+    query: Vec<(&str, &str)>,
+  ) -> Result<Response, ureq::Error> {
+    println!("with_retry");
+    let response = self.call(method, path, &query);
     match response {
-      Err(ureq::Error::Status(401, _)) => {
+      Err(ureq::Error::Status(401, resp)) => {
         println!("status 401, trying to refresh");
         match auth::refresh_token(self.token.as_ref().unwrap(), self.redirect_url.clone()) {
           Ok(refresh_token) => {
             let refresh_token2 = refresh_token.clone();
             self.set_token(Some(refresh_token2.clone()));
-            self
-              .agent
-              .request(method, path)
-              .set(
-                "Authorization",
-                format!("Bearer {}", refresh_token2.clone().access_token().secret()).as_str(),
-              )
-              .call()
+            auth::save_token(&refresh_token).map_err(|_e| ureq::Error::Status(401, resp))?;
+            self.call(method, path, &query)
           }
           Err(e) => {
             println!("problem: {}", e);
@@ -164,6 +167,7 @@ impl Client {
   }
 
   pub fn list_events(&mut self, calendar_id: String) -> Result<EventList, DashboardError> {
+    println!("list events");
     let url = format!("{}/calendars/{}/events", self.url, calendar_id);
     let now = Utc::now().to_rfc3339();
     let query = vec![("timeMin", now.as_str())];
