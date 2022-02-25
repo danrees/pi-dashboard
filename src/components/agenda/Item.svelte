@@ -1,7 +1,6 @@
 <script lang="ts">
   export let item: {
     summary: string;
-    created: Date;
     start: { dateTime: Date };
   };
 </script>
