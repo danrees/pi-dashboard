@@ -1,9 +1,6 @@
 <script lang="ts">
-  import { WebviewWindow } from "@tauri-apps/api/window";
-  import { invoke } from "@tauri-apps/api/tauri";
-  import routes from "./routes";
-
   import Router from "svelte-spa-router";
+  import routes from "./routes";
 
   let calendarList: {
     items: { summary: string }[];

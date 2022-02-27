@@ -141,7 +141,7 @@ pub fn refresh_token(token: &MyToken, redirect_url: String) -> Result<MyToken, D
   .set_redirect_uri(RedirectUrl::new(redirect_url)?);
   if let Some(refresh_token) = token.refresh_token() {
     println!("Refresh token is: {}", refresh_token.secret());
-    let token = client
+    let new_token = client
       .exchange_refresh_token(refresh_token)
       .request(http_client)
       .or_else(|e| {
@@ -150,8 +150,9 @@ pub fn refresh_token(token: &MyToken, redirect_url: String) -> Result<MyToken, D
           Some("oauth2::RequestTokenError".to_string()),
         ));
       });
-
-    token
+    // FIXME: I don't really like having to save and load the token to avoid ownership issues
+    save_token(&new_token.unwrap(), Some(refresh_token.clone())).unwrap();
+    load_token()
   } else {
     Err(DashboardError::new(
       String::from("No refresh token set"),
