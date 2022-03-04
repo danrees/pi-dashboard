@@ -2,7 +2,6 @@
   import { Meta, Template, Story } from "@storybook/addon-svelte-csf";
   import Agenda from "../../components/agenda/agenda.svelte";
   import { mockIPC } from "@tauri-apps/api/mocks";
-  import Tailwindcss from "../Tailwindcss.svelte";
 
   mockIPC((cmd, args) => {
     switch (cmd) {
@@ -13,14 +12,14 @@
               id: "1",
               summary: "This is an event",
               start: {
-                dateTime: new Date(),
+                dateTime: new Date(2022, 1, 1, 1, 1, 1, 1),
               },
             },
             {
               id: "2",
               summary: "This is another event",
               start: {
-                dateTime: new Date(),
+                dateTime: Date.now(),
               },
             },
           ],
@@ -35,15 +34,7 @@
 <Meta title="Agenda" component={Agenda} />
 
 <Template let:args>
-  <Tailwindcss>
-    <Agenda {...args} />
-  </Tailwindcss>
+  <Agenda {...args} />
 </Template>
 
 <Story name="Primary" args={{}} />
-
-<style lang="postcss" global>
-  @tailwind base;
-  @tailwind components;
-  @tailwind utilities;
-</style>

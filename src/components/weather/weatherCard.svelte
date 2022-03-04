@@ -5,7 +5,7 @@
 </script>
 
 <div>
-  <p>At: {at}</p>
+  <p>At: <span class="text-slate-500 text-sm">{at}</span></p>
   <p>Temperature: {temp}</p>
   <p>Humidity: {humidity}</p>
 </div>

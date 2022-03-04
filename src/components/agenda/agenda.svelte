@@ -16,6 +16,7 @@
 </script>
 
 <Card>
+  <h1 class="text-lg underline">Agenda</h1>
   <ul class="list-disc list-inside">
     {#await agendaItems}
       <p>Loading...</p>

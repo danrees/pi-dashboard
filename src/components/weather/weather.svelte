@@ -24,7 +24,7 @@
 </script>
 
 <Card>
-  <h1>Weather</h1>
+  <h1 class="text-lg underline">Weather</h1>
   {#await weather}
     <p>loading...</p>
   {:then val}

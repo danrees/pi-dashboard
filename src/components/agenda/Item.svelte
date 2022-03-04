@@ -5,6 +5,7 @@
   };
 </script>
 
-<div class="flex coloumns-2">
-  <p>{item.summary}-{new Date(item.start.dateTime)}</p>
-</div>
+<span>
+  {item.summary} -
+  <span class="text-slate-500">{new Date(item.start.dateTime)}</span>
+</span>
