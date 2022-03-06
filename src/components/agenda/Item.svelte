@@ -7,5 +7,5 @@
 
 <span>
   {item.summary} -
-  <span class="text-slate-500">{new Date(item.start.dateTime)}</span>
+  <span class="text-slate-500 text-sm">{new Date(item.start.dateTime)}</span>
 </span>

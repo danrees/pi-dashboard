@@ -17,12 +17,12 @@
 
 <Card>
   <h1 class="text-lg underline">Agenda</h1>
-  <ul class="list-disc list-inside">
+  <ul class="list-inside space-y-2">
     {#await agendaItems}
       <p>Loading...</p>
     {:then items}
       {#each items.items as item (item.id)}
-        <li>
+        <li class="rounded-md bg-rose-100 drop-shadow-md px-2">
           <Item {item} />
         </li>
       {/each}
