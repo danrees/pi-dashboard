@@ -2,13 +2,17 @@
   all(not(debug_assertions), target_os = "windows"),
   windows_subsystem = "windows"
 )]
-mod config;
+mod calendar;
 mod errors;
 mod google;
 
+use errors::DashboardError;
 use google::auth;
 use google::client::{CalendarList, Client, EventList};
 
+use calendar::Config as CalendarConfig;
+use calendar::State;
+use config::Config;
 use rocket;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -19,6 +23,31 @@ use tauri::{api::shell, Manager, Window};
 
 struct Tx(Mutex<Sender<String>>);
 struct Rx(Mutex<Receiver<String>>);
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+enum WeatherUnits {
+  #[serde(rename = "metric")]
+  Metric,
+  #[serde(rename = "imperial")]
+  Imperial,
+}
+
+impl std::fmt::Display for WeatherUnits {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      WeatherUnits::Metric => write!(f, "metric"),
+      WeatherUnits::Imperial => write!(f, "imperial"),
+    }
+  }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct WeatherConfig {
+  uri: String,
+  app_id: String,
+  units: WeatherUnits,
+  city_id: String,
+}
 
 #[derive(Serialize, Deserialize)]
 struct WeatherResponseMain {
@@ -31,6 +60,12 @@ struct WeatherResponseMain {
 #[derive(Serialize, Deserialize)]
 struct WeatherResponse {
   main: WeatherResponseMain,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct AppConfig {
+  callback_url: String,
+  weather: WeatherConfig,
 }
 
 #[tauri::command]
@@ -53,14 +88,15 @@ fn login(
 }
 
 #[tauri::command]
-fn get_weather() -> Result<WeatherResponse, errors::DashboardError> {
-  let appid = env::var("OPEN_WEATHER").unwrap();
-  let id = env::var("CITY_ID").unwrap();
-  let uri = "https://api.openweathermap.org/data/2.5/weather";
-  let resp: WeatherResponse = ureq::get(uri)
-    .query("id", &id[..])
-    .query("appid", &appid[..])
-    .query("units", "metric")
+fn get_weather(
+  weather_config: tauri::State<Mutex<WeatherConfig>>,
+) -> Result<WeatherResponse, errors::DashboardError> {
+  //let uri = "https://api.openweathermap.org/data/2.5/weather";
+  let conf = weather_config.lock()?;
+  let resp: WeatherResponse = ureq::get(conf.uri.as_str())
+    .query("id", conf.city_id.as_str())
+    .query("appid", conf.app_id.as_str())
+    .query("units", conf.units.to_string().as_str())
     .call()?
     .into_json()?;
 
@@ -77,13 +113,13 @@ fn get_calendar(
 #[tauri::command]
 fn get_events(
   google_client: tauri::State<Mutex<Client>>,
-  config: tauri::State<Mutex<config::Config>>,
+  config: tauri::State<Mutex<State>>,
 ) -> Result<EventList, errors::DashboardError> {
-  match &config.lock()?.calendar_id {
-    Some(id) => google_client.lock()?.list_events(id.clone()),
-    None => Err(errors::DashboardError::new(
+  match &config.lock()?.read() {
+    Ok(id) => google_client.lock()?.list_events(id.clone().calendar_id),
+    Err(e) => Err(errors::DashboardError::new(
       String::from("No calendar id set, please select one in the configuration"),
-      None,
+      Some(format!("{}", e)),
     )),
   }
 }
@@ -91,14 +127,12 @@ fn get_events(
 #[tauri::command]
 fn save_config(
   calendar_id: String,
-  config: tauri::State<Mutex<config::Config>>,
-) -> Result<config::Config, errors::DashboardError> {
-  let mut use_config = config.lock()?;
-  println!("{}", calendar_id);
-  use_config.calendar_id = Some(calendar_id);
-  println!("main: {:?}", use_config);
-  match use_config.write() {
-    Ok(_) => Ok(use_config.clone()),
+  config: tauri::State<Mutex<State>>,
+) -> Result<CalendarConfig, errors::DashboardError> {
+  let use_config = config.lock()?;
+  println!("calendar id {}", &calendar_id);
+  match use_config.write(calendar_id.clone()) {
+    Ok(_) => Ok(CalendarConfig { calendar_id }),
     Err(e) => Err(errors::DashboardError::new(
       format!("{}", e),
       Some(String::from("saving_config")),
@@ -108,10 +142,15 @@ fn save_config(
 
 #[tauri::command]
 fn load_config(
-  config: tauri::State<Mutex<config::Config>>,
-) -> Result<config::Config, errors::DashboardError> {
-  let unlocked = config.lock()?.clone();
-  Ok(unlocked)
+  config: tauri::State<Mutex<State>>,
+) -> Result<CalendarConfig, errors::DashboardError> {
+  match config.lock()?.read() {
+    Ok(cal) => {
+      println!("loading config: {:?}", cal);
+      Ok(cal)
+    }
+    Err(e) => Err(DashboardError::new(format!("{}", e), None)),
+  }
 }
 
 #[rocket::get("/callback?<code>")]
@@ -124,10 +163,18 @@ fn callback(code: &str, tx: &rocket::State<Tx>) -> &'static str {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+  let config_file = Config::builder()
+    .add_source(config::File::with_name("./config.toml"))
+    .add_source(config::Environment::with_prefix("DASH"))
+    .build()?;
+  let config = config_file.try_deserialize::<AppConfig>()?;
+
   let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
   let token = auth::load_token().ok();
-  let google_client = Client::new(None, token, "http://localhost:8000/callback".to_string());
-  let config = config::Config::read()?;
+  let google_client = Client::new(None, token, config.callback_url.clone());
+  //let config = config::Config::read()?;
+
+  let state = State::new("./state/db")?;
   tauri::Builder::default()
     .setup(move |_app| {
       tauri::async_runtime::spawn(
@@ -140,7 +187,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     })
     .manage(Rx(Mutex::new(rx)))
     .manage(Mutex::new(google_client))
-    .manage(Mutex::new(config))
+    .manage(Mutex::new(state))
+    .manage(Mutex::new(config.weather))
     .invoke_handler(tauri::generate_handler![
       get_weather,
       login,

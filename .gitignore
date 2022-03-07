@@ -8,3 +8,4 @@
 !.babelrc
 !.storybook/
 city.list.json
+/src-tauri/state/db/

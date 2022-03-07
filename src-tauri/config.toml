@@ -1,0 +1,7 @@
+#calendar_id = "family09388206138043941962@group.calendar.google.com"
+callback_url = "http://localhost:8000/callback"
+[weather]
+uri = "https://api.openweathermap.org/data/2.5/weather"
+app_id = "bdc6b2ea67e4095643646998d7354093"
+city_id = "6058560"
+units = "metric"
