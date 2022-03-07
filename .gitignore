@@ -7,5 +7,6 @@
 !.gitignore
 !.babelrc
 !.storybook/
+!.circleci/
 city.list.json
 /src-tauri/state/db/

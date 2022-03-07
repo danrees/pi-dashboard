@@ -1,0 +1,22 @@
+version: 2.1
+
+executors:
+  rust:
+    resource_class: small
+    docker:
+      - image: cimg/rust:1.59-node
+
+
+
+jobs:
+  test-js:
+    executor: rust
+    steps:
+      - checkout
+      - run: yarn test
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - test-js
