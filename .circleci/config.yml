@@ -13,7 +13,15 @@ jobs:
     executor: rust
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - "pi-dashboard-{{checksum yarn.lock}}"
+      - run: yarn install --frozen-lockfile
       - run: yarn test
+      - save_cache:
+          paths:
+            - "node_modules/"
+          key: "pi-dashboard-{{checksum yarn.lock}}"
 
 workflows:
   version: 2
