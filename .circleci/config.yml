@@ -15,13 +15,13 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - "pi-dashboard-{{checksum yarn.lock}}"
+            - pi-dashboard-{{checksum "yarn.lock"}}
       - run: yarn install --frozen-lockfile
       - run: yarn test
       - save_cache:
           paths:
             - "node_modules/"
-          key: "pi-dashboard-{{checksum yarn.lock}}"
+          key: pi-dashboard-{{checksum "yarn.lock"}}
 
 workflows:
   version: 2
