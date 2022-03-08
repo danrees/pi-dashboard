@@ -10,3 +10,4 @@
 !.circleci/
 city.list.json
 /src-tauri/state/db/
+/src-tauri/config.toml
