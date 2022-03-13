@@ -52,6 +52,7 @@ dependencies = [
  "chrono",
  "config",
  "easy-error",
+ "log",
  "oauth2",
  "reqwest",
  "retry",

@@ -18,6 +18,7 @@ chrono = "0.4.19"
 config = "0.12.0"
 easy-error = "1.0.0"
 oauth2 = {version = "4.1.0", features = ["ureq"] }
+log = "0.4.14"
 reqwest = {version = "0.11.9", features = ["blocking"] }
 retry = "1.3.0"
 rocket = "0.5.0-rc.1"

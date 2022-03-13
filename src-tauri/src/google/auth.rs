@@ -1,3 +1,4 @@
+use log::debug;
 use oauth2::basic::BasicClient;
 use oauth2::ureq::http_client;
 use oauth2::{
@@ -64,7 +65,7 @@ impl std::convert::From<&MyToken> for SaveCreds {
 
 fn load_creds() -> Result<OauthCreds, DashboardError> {
   let x: OauthCreds = serde_json::from_reader(File::open("../.desktop_credentials.json")?)?;
-  println!("saved new creds");
+  debug!("loaded credentials");
   Ok(x)
 }
 
@@ -72,7 +73,7 @@ pub fn save_token(
   token: &MyToken,
   refresh_token: Option<oauth2::RefreshToken>,
 ) -> Result<(), DashboardError> {
-  println!("saving creds");
+  debug!("saving token");
   let mut to_save: SaveCreds = token.into();
   if let Some(t) = refresh_token {
     to_save.refresh_token = Some(t.secret().clone());
@@ -108,7 +109,7 @@ pub fn get_auth_url(redirect_url: String) -> Result<String, DashboardError> {
 }
 
 pub fn exchange_token(auth_code: String, redirect_url: String) -> Result<MyToken, DashboardError> {
-  println!("Code: {}", auth_code);
+  debug!("auth code: {}", auth_code);
   let creds = load_creds()?;
   let client = BasicClient::new(
     ClientId::new(creds.installed.client_id),
@@ -130,7 +131,7 @@ pub fn exchange_token(auth_code: String, redirect_url: String) -> Result<MyToken
 }
 
 pub fn refresh_token(token: &MyToken, redirect_url: String) -> Result<MyToken, DashboardError> {
-  println!("refreshing token");
+  debug!("refreshing token");
   let creds = load_creds()?;
   let client = BasicClient::new(
     ClientId::new(creds.installed.client_id),
@@ -140,7 +141,7 @@ pub fn refresh_token(token: &MyToken, redirect_url: String) -> Result<MyToken, D
   )
   .set_redirect_uri(RedirectUrl::new(redirect_url)?);
   if let Some(refresh_token) = token.refresh_token() {
-    println!("Refresh token is: {}", refresh_token.secret());
+    debug!("Refresh token is: {}", refresh_token.secret());
     let new_token = client
       .exchange_refresh_token(refresh_token)
       .request(http_client)

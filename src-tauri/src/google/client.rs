@@ -5,6 +5,7 @@ use crate::auth::MyToken;
 use crate::errors::DashboardError;
 use cached::{stores::TimedCache, Cached};
 use chrono::{DateTime, Utc};
+use log::{debug, error, info};
 use oauth2::TokenResponse;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -120,11 +121,11 @@ impl Client {
     path: &str,
     query: Vec<(&str, &str)>,
   ) -> Result<Response, ureq::Error> {
-    println!("with_retry");
+    debug!("with_retry");
     let response = self.call(method, path, &query);
     match response {
       Err(ureq::Error::Status(401, resp)) => {
-        println!("status 401, trying to refresh");
+        info!("status 401, trying to refresh token");
         match auth::refresh_token(self.token.as_ref().unwrap(), self.redirect_url.clone()) {
           Ok(refresh_token) => {
             let refresh_token2 = refresh_token.clone();
@@ -145,7 +146,7 @@ impl Client {
             self.call(method, path, &query)
           }
           Err(e) => {
-            println!("problem: {}", e);
+            error!("problem: {}", e);
             Err(ureq::Error::Status(
               500,
               ureq::Response::new(500, "internal server error", format!("{}", e).as_str()).unwrap(),
@@ -159,7 +160,7 @@ impl Client {
   }
 
   pub fn list_calendars(&mut self) -> Result<CalendarList, DashboardError> {
-    println!("called list_calendars");
+    debug!("called list_calendars");
     if let None = self.token {
       return Err(DashboardError::new(
         String::from("no token set, login first"),
@@ -179,7 +180,7 @@ impl Client {
   }
 
   pub fn list_events(&mut self, calendar_id: String) -> Result<EventList, DashboardError> {
-    println!("list events");
+    debug!("called list events");
     let url = format!("{}/calendars/{}/events", self.url, calendar_id);
     let now = Utc::now().to_rfc3339();
     let query = vec![("timeMin", now.as_str())];

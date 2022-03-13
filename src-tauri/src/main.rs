@@ -9,6 +9,7 @@ mod google;
 use errors::DashboardError;
 use google::auth;
 use google::client::{CalendarList, Client, EventList};
+use log::{debug, error};
 
 use calendar::Config as CalendarConfig;
 use calendar::State;
@@ -50,11 +51,14 @@ struct WeatherConfig {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 struct WeatherResponseMain {
   temp: f32,
   feels_like: f32,
   pressure: i32,
   humidity: i32,
+  temp_min: f32,
+  temp_max: f32,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -74,7 +78,7 @@ fn login(
   google_client: tauri::State<Mutex<Client>>,
   window: Window,
 ) -> Result<(), errors::DashboardError> {
-  println!("Called tauri login");
+  debug!("Called tauri login");
 
   //We'll just assume that if there was an error opening the file that it doesn't exist
   let auth_url = auth::get_auth_url("http://localhost:8000/callback".to_string())?;
@@ -130,7 +134,7 @@ fn save_config(
   config: tauri::State<Mutex<State>>,
 ) -> Result<CalendarConfig, errors::DashboardError> {
   let use_config = config.lock()?;
-  println!("calendar id {}", &calendar_id);
+  debug!("calendar id {}", &calendar_id);
   match use_config.write(calendar_id.clone()) {
     Ok(_) => Ok(CalendarConfig { calendar_id }),
     Err(e) => Err(errors::DashboardError::new(
@@ -146,7 +150,7 @@ fn load_config(
 ) -> Result<CalendarConfig, errors::DashboardError> {
   match config.lock()?.read() {
     Ok(cal) => {
-      println!("loading config: {:?}", cal);
+      debug!("loading config: {:?}", cal);
       Ok(cal)
     }
     Err(e) => Err(DashboardError::new(format!("{}", e), None)),
@@ -156,7 +160,7 @@ fn load_config(
 #[rocket::get("/callback?<code>")]
 fn callback(code: &str, tx: &rocket::State<Tx>) -> &'static str {
   if let Err(e) = tx.0.lock().unwrap().send(code.to_string()) {
-    println!("{}", e);
+    error!("{}", e);
     return "Unable to process auth code, something went wrong";
   };
   "You can close now"
@@ -172,7 +176,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
   let token = auth::load_token().ok();
   let google_client = Client::new(None, token, config.callback_url.clone());
-  //let config = config::Config::read()?;
 
   let state = State::new("./state/db")?;
   tauri::Builder::default()
