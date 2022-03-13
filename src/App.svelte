@@ -18,7 +18,7 @@
       <div class="ml-55 mt-4">
         <ul class="text-white sm:self-center text-xl">
           <li class="sm:inline-block">
-            <a href="#/calendarlist" class="p-3 hover:text-red-900"
+            <a href="#/calendarlist" class="p-3 hover:text-red-500"
               >Select Calendar</a
             >
           </li>

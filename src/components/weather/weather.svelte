@@ -7,6 +7,9 @@
     main: {
       temp: number;
       humidity: number;
+      feelsLike: number;
+      tempMin: number;
+      tempMax: number;
     };
   };
 
@@ -31,9 +34,12 @@
     <WeatherCard
       at={refreshedAt}
       temp={+val.main.temp.toPrecision(2)}
-      humidity={val.main.humidity}
+      humidity={+val.main.humidity.toPrecision(2)}
+      feelsLike={+val.main.feelsLike.toPrecision(2)}
+      tempMax={+val.main.tempMax.toPrecision(2)}
+      tempMin={+val.main.tempMin.toPrecision(2)}
     />
   {:catch err}
-    <p>{err}</p>
+    <p>{err?.msg}</p>
   {/await}
 </Card>
