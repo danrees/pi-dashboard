@@ -31,7 +31,7 @@
   });
 </script>
 
-<Meta title="Agenda" component={Agenda} />
+<Meta title="Components/Agenda" component={Agenda} />
 
 <Template let:args>
   <Agenda {...args} />

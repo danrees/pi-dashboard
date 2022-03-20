@@ -56,6 +56,9 @@
     "sirv-cli": "^1.0.0",
     "svelte-spa-router": "^3.2.0"
   },
+  "resolutions": {
+    "acorn": "8.0.1"
+  },
   "jest": {
     "transform": {
       "^.+\\.ts$": "ts-jest",
