@@ -151,9 +151,17 @@ pub fn refresh_token(token: &MyToken, redirect_url: String) -> Result<MyToken, D
           Some("oauth2::RequestTokenError".to_string()),
         ));
       });
-    // FIXME: I don't really like having to save and load the token to avoid ownership issues
-    save_token(&new_token.unwrap(), Some(refresh_token.clone())).unwrap();
-    load_token()
+    match &new_token {
+      Ok(t) => {
+        // FIXME: I don't really like having to save and load the token to avoid ownership issues
+        save_token(t, Some(refresh_token.clone()))?;
+        load_token()
+      }
+      Err(e) => Err(DashboardError::new(
+        String::from("unable to refresh token, please do so manually"),
+        Some(format!("{}", e)),
+      )),
+    }
   } else {
     Err(DashboardError::new(
       String::from("No refresh token set"),

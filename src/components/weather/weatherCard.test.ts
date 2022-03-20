@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { render } from "@testing-library/svelte";
+import { render, within } from "@testing-library/svelte";
 import WeatherCard from "./weatherCard.svelte";
 
 test("does it test", () => {
@@ -13,6 +13,8 @@ test("does it test", () => {
     tempMin: 15,
     tempMax: 25,
   });
-  const temp = getByText("Temperature: 20");
+  const temp = getByText(/^Temperature:/);
+
   expect(temp).toBeInTheDocument();
+  expect(temp).toHaveTextContent("Temperature: 20°C");
 });
